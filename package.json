@@ -1,0 +1,58 @@
+{
+  "name": "duck",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "electron-dev": "NODE_ENV=development concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron-build": "npm run build && electron-builder",
+    "capacitor-sync": "cap sync",
+    "capacitor-open-ios": "cap open ios",
+    "capacitor-open-android": "cap open android"
+  },
+  "bugs": {
+    "url": "https://github.com/TemRevil/duck/issues"
+  },
+  "homepage": "https://github.com/TemRevil/duck#readme",
+  "devDependencies": {
+    "@types/node": "25.2.3",
+    "@types/react": "19.2.14",
+    "@capacitor/core": "5.5.0",
+    "@capacitor/cli": "5.5.0",
+    "autoprefixer": "^10.4.24",
+    "electron": "28.0.0",
+    "electron-builder": "24.6.4",
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.1.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "next": "16.1.6",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "framer-motion": "12.34.0",
+    "lucide-react": "0.563.0",
+    "@headlessui/react": "2.2.9",
+    "react-hot-toast": "2.6.0",
+    "zustand": "5.0.11",
+    "clsx": "2.1.1",
+    "tailwind-merge": "3.4.0"
+  },
+  "build": {
+    "appId": "com.duck.app",
+    "productName": "duck",
+    "files": [
+      "out/**/*",
+      "node_modules/**/*",
+      "electron/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    }
+  }
+}
