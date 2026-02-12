@@ -23,9 +23,15 @@ const SettingsModalContent: React.FC<{ onClose: () => void }> = ({ onClose }) =>
     const {
         theme,
         language,
+        primaryTranscriptionLanguage,
+        secondaryTranscriptionLanguage,
+        modelQuality,
         notificationsEnabled,
         setTheme,
         setLanguage,
+        setPrimaryTranscriptionLanguage,
+        setSecondaryTranscriptionLanguage,
+        setModelQuality,
         toggleNotifications,
     } = useSettingsStore();
     const t = translations[language];
@@ -162,7 +168,74 @@ const SettingsModalContent: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                 </div>
             </section>
 
-            {/* Model selection removed in UI-only mode */}
+            {/* Transcription Section */}
+            <section className="space-y-5">
+                <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-tropical-teal/70 dark:text-tropical-teal px-2 py-0.5 bg-tropical-teal/5 dark:bg-tropical-teal/10 rounded-md">Transcription</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Primary Language */}
+                    <div className="p-4 rounded-2xl bg-white/40 dark:bg-white/5 border border-pearl-aqua/20 dark:border-white/10">
+                        <p className="font-bold text-sm text-shadow-grey dark:text-white mb-3">Primary Language</p>
+                        <select
+                            value={primaryTranscriptionLanguage}
+                            onChange={(e) => setPrimaryTranscriptionLanguage(e.target.value)}
+                            className="w-full bg-taupe-grey/5 dark:bg-black/20 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-tropical-teal outline-none"
+                        >
+                            <option value="en">English</option>
+                            <option value="ar">Arabic</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="es">Spanish</option>
+                        </select>
+                    </div>
+
+                    {/* Secondary Language */}
+                    <div className="p-4 rounded-2xl bg-white/40 dark:bg-white/5 border border-pearl-aqua/20 dark:border-white/10">
+                        <p className="font-bold text-sm text-shadow-grey dark:text-white mb-3">Secondary Language (Optional)</p>
+                        <select
+                            value={secondaryTranscriptionLanguage}
+                            onChange={(e) => setSecondaryTranscriptionLanguage(e.target.value)}
+                            className="w-full bg-taupe-grey/5 dark:bg-black/20 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-tropical-teal outline-none"
+                        >
+                            <option value="">None</option>
+                            <option value="en">English</option>
+                            <option value="ar">Arabic</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="es">Spanish</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Model Quality */}
+                <div className="p-4 rounded-2xl bg-white/40 dark:bg-white/5 border border-pearl-aqua/20 dark:border-white/10 group">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-tropical-teal/10 dark:bg-white/5 rounded-xl text-tropical-teal group-hover:scale-110 transition-transform">
+                            <Globe size={18} />
+                        </div>
+                        <div>
+                            <p className="font-bold text-sm text-shadow-grey dark:text-white">Model Quality</p>
+                            <p className="text-[10px] text-taupe-grey/60 dark:text-white/40 font-medium">Higher quality requires more memory and time</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 p-1 bg-taupe-grey/5 dark:bg-black/20 rounded-xl">
+                        {(['tiny', 'base', 'small', 'medium'] as const).map((quality) => (
+                            <button
+                                key={quality}
+                                onClick={() => setModelQuality(quality)}
+                                className={`py-2 px-1 rounded-lg text-[10px] font-bold transition-all ${modelQuality === quality
+                                    ? 'bg-white dark:bg-tropical-teal text-tropical-teal dark:text-white shadow-sm'
+                                    : 'text-taupe-grey/60 dark:text-white/40 hover:text-tropical-teal dark:hover:text-white'
+                                    }`}
+                            >
+                                {quality.toUpperCase()}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </section>
 
             <footer className="pt-4 border-t border-pearl-aqua/20 dark:border-white/10 flex flex-col md:flex-row gap-4 justify-between items-center">
                 <p className="text-[10px] text-taupe-grey/40 dark:text-white/30 font-medium italic order-2 md:order-1">Duck Transcription Engine v1.0.2</p>

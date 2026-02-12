@@ -2,9 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@custom-variant dark (&:where(.dark, .dark *));
-
-@theme {
+:root {
   /* Custom Color Palette */
   --color-shadow-grey: #32292f;
   --color-pearl-aqua: #99e1d9;
