@@ -87,4 +87,35 @@ export class AudioRecorder {
         }
         return merged;
     }
+
+    /**
+     * Gets and resamples only the last N seconds of recorded audio
+     */
+    public getWindowAudio(currentSampleRate: number, windowSeconds: number): Float32Array {
+        const windowSamples = currentSampleRate * windowSeconds;
+
+        // Find how many chunks we need from the end
+        let totalWindowSamples = 0;
+        const chunksToInclude: Float32Array[] = [];
+
+        for (let i = this.audioData.length - 1; i >= 0; i--) {
+            const chunk = this.audioData[i];
+            chunksToInclude.unshift(chunk);
+            totalWindowSamples += chunk.length;
+            if (totalWindowSamples >= windowSamples) break;
+        }
+
+        if (chunksToInclude.length === 0) return new Float32Array(0);
+
+        const merged = this.mergeChunks(chunksToInclude);
+        // Take only the exact window size from the end
+        const finalMerged = merged.length > windowSamples
+            ? merged.slice(merged.length - windowSamples)
+            : merged;
+
+        if (currentSampleRate !== 16000) {
+            return this.resampleAudio(finalMerged, currentSampleRate, 16000);
+        }
+        return finalMerged;
+    }
 }

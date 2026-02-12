@@ -7,7 +7,7 @@ import { useSettingsStore } from '../../settings/store/settingsStore';
 import { translations } from '../../../utils/translations';
 
 export const Recorder: React.FC = () => {
-    const { isRecording, transcript, status, startRecording, stopRecording } = useLiveTranscription();
+    const { isRecording, transcript, interimTranscript, status, startRecording, stopRecording } = useLiveTranscription();
     const { language } = useSettingsStore();
     const t = translations[language];
 
@@ -38,7 +38,7 @@ export const Recorder: React.FC = () => {
                 </div>
             </div>
 
-            {(transcript || isRecording) && (
+            {(transcript || interimTranscript || isRecording) && (
                 <GlassCard className="p-6 min-h-[200px]">
                     <div className="flex items-center justify-between mb-4">
                         <h4 className="font-bold text-lg">Live Transcription</h4>
@@ -47,7 +47,14 @@ export const Recorder: React.FC = () => {
                         </div>}
                     </div>
                     <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                        {transcript || 'Waiting for speech...'}
+                        {isRecording ? (
+                            <div className="space-y-4">
+                                {transcript && <p className="opacity-60">{transcript}</p>}
+                                <p>{interimTranscript || 'Waiting for speech...'}</p>
+                            </div>
+                        ) : (
+                            transcript || 'No transcript available'
+                        )}
                     </div>
                 </GlassCard>
             )}
