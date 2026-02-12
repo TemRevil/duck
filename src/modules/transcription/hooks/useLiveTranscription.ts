@@ -22,6 +22,9 @@ export const useLiveTranscription = () => {
 
     const startRecording = async () => {
         try {
+            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const currentSampleRate = audioCtx.sampleRate;
+
             recorderRef.current = new AudioRecorder();
             await recorderRef.current.start();
             setIsRecording(true);
@@ -44,23 +47,27 @@ export const useLiveTranscription = () => {
             processingInterval.current = setInterval(async () => {
                 if (!recorderRef.current) return;
 
-                // Get full audio so far and resample
-                // In a more optimized version we would only send the new part
-                // but Whisper needs context.
-                const audio = recorderRef.current.getFullAudio(new AudioContext().sampleRate);
+                // Get audio for transcription
+                // For live transcription, we use a sliding window of the last 30 seconds
+                // to keep it fast while providing enough context for Whisper.
+                // We extract and resample ONLY the window to maintain performance.
+                const audioWindow = recorderRef.current.getWindowAudio(currentSampleRate, 30);
 
-                if (audio.length > 16000 * 2) { // Process if we have more than 2 seconds
+                if (audioWindow.length > 16000 * 1) { // Process if we have more than 1 second
                      try {
-                        const result = await engine.transcribe(audio, {
+                        const result = await engine.transcribe(audioWindow, {
                             model: `Xenova/whisper-${modelQuality}${primaryTranscriptionLanguage === 'en' ? '.en' : ''}`,
                             language: primaryTranscriptionLanguage === 'auto' ? undefined : primaryTranscriptionLanguage,
+                            secondaryLanguage: secondaryTranscriptionLanguage || undefined,
                         });
-                        setTranscript(result.text);
+                        // Append to transcript if we were doing incremental,
+                        // but here we just show the window result as interim
+                        setInterimTranscript(result.text);
                      } catch (err) {
                         console.error("Live transcription error:", err);
                      }
                 }
-            }, 5000); // Every 5 seconds
+            }, 4000);
 
         } catch (error) {
             console.error("Failed to start recording:", error);
@@ -82,10 +89,12 @@ export const useLiveTranscription = () => {
             const result = await engine.transcribe(finalAudio, {
                 model: `Xenova/whisper-${modelQuality}${primaryTranscriptionLanguage === 'en' ? '.en' : ''}`,
                 language: primaryTranscriptionLanguage === 'auto' ? undefined : primaryTranscriptionLanguage,
+                secondaryLanguage: secondaryTranscriptionLanguage || undefined,
                 onProgress: (p) => setStatus(p)
             });
 
             setTranscript(result.text);
+            setInterimTranscript('');
             setStatus('Completed');
 
             // Update DB
@@ -95,8 +104,8 @@ export const useLiveTranscription = () => {
                 segments: clusterSegments(result.chunks).map(c => ({
                     speaker: c.speaker || 'Speaker 1',
                     text: c.text,
-                    start: c.timestamp[0],
-                    end: c.timestamp[1]
+                    start: (c.timestamp?.[0]) || 0,
+                    end: (c.timestamp?.[1]) || 0
                 })),
                 status: 'completed'
             });
@@ -117,6 +126,7 @@ export const useLiveTranscription = () => {
     return {
         isRecording,
         transcript,
+        interimTranscript,
         status,
         startRecording,
         stopRecording

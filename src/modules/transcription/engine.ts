@@ -31,6 +31,7 @@ export class TranscriptionEngine {
     public transcribe(audio: Float32Array, options: {
         model?: string;
         language?: string;
+        secondaryLanguage?: string;
         onProgress?: (status: string) => void;
     }): Promise<TranscriptionResult> {
         return new Promise((resolve, reject) => {
@@ -42,18 +43,23 @@ export class TranscriptionEngine {
             const task_id = Math.random().toString(36).substring(7);
 
             const handler = (e: MessageEvent) => {
+                // Defensive check for e.data
+                if (!e.data || typeof e.data !== 'object') return;
+
                 const { status, task_id: response_id, result, error, message } = e.data;
 
                 if (response_id !== task_id) return;
 
                 if (status === 'loading' || status === 'processing') {
-                    options.onProgress?.(message || status);
+                    if (options && typeof options.onProgress === 'function') {
+                        options.onProgress(message || status);
+                    }
                 } else if (status === 'completed') {
                     this.worker?.removeEventListener('message', handler);
                     resolve(result);
                 } else if (status === 'error') {
                     this.worker?.removeEventListener('message', handler);
-                    reject(new Error(error));
+                    reject(new Error(error || 'Unknown worker error'));
                 }
             };
 
@@ -63,6 +69,7 @@ export class TranscriptionEngine {
                 audio,
                 model: options.model || 'Xenova/whisper-tiny.en',
                 language: options.language,
+                secondaryLanguage: options.secondaryLanguage,
                 task_id
             });
         });

@@ -183,6 +183,7 @@ const SettingsModalContent: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                             onChange={(e) => setPrimaryTranscriptionLanguage(e.target.value)}
                             className="w-full bg-taupe-grey/5 dark:bg-black/20 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-tropical-teal outline-none"
                         >
+                            <option value="auto">Auto-detect</option>
                             <option value="en">English</option>
                             <option value="ar">Arabic</option>
                             <option value="fr">French</option>

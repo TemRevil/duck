@@ -9,10 +9,10 @@ let transcriber: any = null;
 let featureExtractor: any = null;
 
 async function getTranscriber(model: string) {
-    if (!transcriber || transcriber.model !== model) {
+    if (!transcriber || transcriber.modelName !== model) {
         self.postMessage({ status: 'loading', message: `Loading ${model}...` });
         transcriber = await pipeline('automatic-speech-recognition', model);
-        transcriber.model = model;
+        transcriber.modelName = model;
     }
     return transcriber;
 }
@@ -20,13 +20,14 @@ async function getTranscriber(model: string) {
 async function getFeatureExtractor() {
     if (!featureExtractor) {
         self.postMessage({ status: 'loading', message: 'Loading Speaker Recognition model...' });
-        featureExtractor = await pipeline('feature-extraction', 'Xenova/facenet-embeddings'); // Using a general purpose embedding model or specific speaker model
+        // Using WavLM for audio-based speaker embeddings
+        featureExtractor = await pipeline('feature-extraction', 'Xenova/wavlm-base-plus-sv');
     }
     return featureExtractor;
 }
 
 self.onmessage = async (e) => {
-    const { audio, model, language, subtask, task_id } = e.data;
+    const { audio, model, language, secondaryLanguage, subtask, task_id } = e.data;
 
     try {
         const p = await getTranscriber(model);
@@ -38,8 +39,12 @@ self.onmessage = async (e) => {
             return_timestamps: true,
         };
 
-        if (language && language !== 'auto') {
+        // If two languages are selected, we use auto-detection (Whisper's default)
+        // If only one is selected, we force it.
+        if (language && language !== 'auto' && !secondaryLanguage) {
             options.language = language;
+        } else if (language === 'auto') {
+            // Auto is already handled by not setting options.language
         }
 
         self.postMessage({ status: 'processing', task_id });
@@ -52,14 +57,20 @@ self.onmessage = async (e) => {
 
             for (let i = 0; i < result.chunks.length; i++) {
                 const chunk = result.chunks[i];
+                if (!chunk.timestamp) continue;
+
                 const [start, end] = chunk.timestamp;
+                // Whisper uses 16000Hz internal sample rate
                 const startSample = Math.floor(start * 16000);
                 const endSample = Math.floor(end * 16000);
                 const chunkAudio = audio.slice(startSample, endSample);
 
                 if (chunkAudio.length > 1000) { // Only extract if chunk is significant
                     try {
-                        const embedding = await extractor(chunkAudio, { pooling: 'mean', normalize: true });
+                        // WavLM expects audio input
+                        const out = await extractor(chunkAudio);
+                        // Pooling over the time dimension (axis 1)
+                        const embedding = out.mean(1);
                         chunk.embedding = Array.from(embedding.data);
                     } catch (e) {
                         console.error("Embedding error", e);
