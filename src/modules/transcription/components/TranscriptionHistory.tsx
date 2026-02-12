@@ -3,7 +3,7 @@ import React from 'react';
 import { db } from '../store/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { GlassCard, GlassButton } from '../../../components/ui';
-import { Calendar, Clock, Trash2, FileText, Download } from 'lucide-react';
+import { Calendar, Clock, Trash2, FileText, Download, Loader2 } from 'lucide-react';
 import { formatTime } from '../../../utils';
 import { useSettingsStore } from '../../settings/store/settingsStore';
 import { translations } from '../../../utils/translations';
