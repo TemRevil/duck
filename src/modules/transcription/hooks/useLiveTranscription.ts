@@ -15,7 +15,7 @@ export const useLiveTranscription = () => {
 
     const recorderRef = useRef<AudioRecorder | null>(null);
     const engine = TranscriptionEngine.getInstance();
-    const { primaryTranscriptionLanguage, secondaryTranscriptionLanguage, modelQuality } = useSettingsStore();
+    const { primaryTranscriptionLanguage, secondaryTranscriptionLanguage } = useSettingsStore();
 
     const lastProcessedIndex = useRef(0);
     const processingInterval = useRef<any>(null);
@@ -56,12 +56,9 @@ export const useLiveTranscription = () => {
                 if (audioWindow.length > 16000 * 1) { // Process if we have more than 1 second
                      try {
                         const result = await engine.transcribe(audioWindow, {
-                            model: `Xenova/whisper-${modelQuality}${primaryTranscriptionLanguage === 'en' ? '.en' : ''}`,
-                            language: primaryTranscriptionLanguage === 'auto' ? undefined : primaryTranscriptionLanguage,
+                            language: primaryTranscriptionLanguage,
                             secondaryLanguage: secondaryTranscriptionLanguage || undefined,
                         });
-                        // Append to transcript if we were doing incremental,
-                        // but here we just show the window result as interim
                         setInterimTranscript(result.text);
                      } catch (err) {
                         console.error("Live transcription error:", err);
@@ -87,8 +84,7 @@ export const useLiveTranscription = () => {
 
         try {
             const result = await engine.transcribe(finalAudio, {
-                model: `Xenova/whisper-${modelQuality}${primaryTranscriptionLanguage === 'en' ? '.en' : ''}`,
-                language: primaryTranscriptionLanguage === 'auto' ? undefined : primaryTranscriptionLanguage,
+                language: primaryTranscriptionLanguage,
                 secondaryLanguage: secondaryTranscriptionLanguage || undefined,
                 onProgress: (p) => setStatus(p)
             });

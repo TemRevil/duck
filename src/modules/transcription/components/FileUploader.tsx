@@ -11,7 +11,7 @@ import { clusterSegments } from '../utils/diarization';
 export const FileUploader: React.FC = () => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [progress, setProgress] = useState('');
-    const { primaryTranscriptionLanguage, modelQuality } = useSettingsStore();
+    const { primaryTranscriptionLanguage } = useSettingsStore();
     const engine = TranscriptionEngine.getInstance();
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -38,8 +38,7 @@ export const FileUploader: React.FC = () => {
 
             setProgress('Transcribing...');
             const result = await engine.transcribe(audioData, {
-                model: `Xenova/whisper-${modelQuality}${primaryTranscriptionLanguage === 'en' ? '.en' : ''}`,
-                language: primaryTranscriptionLanguage === 'auto' ? undefined : primaryTranscriptionLanguage,
+                language: primaryTranscriptionLanguage,
                 onProgress: (p) => setProgress(p)
             });
 
