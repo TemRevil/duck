@@ -7,6 +7,7 @@ import { Toaster } from 'react-hot-toast';
 import { useSettingsStore } from './modules/settings/store/settingsStore';
 import { SettingsModal } from './modules/settings/SettingsModal';
 import { Recorder } from './modules/transcription/components/Recorder';
+import { RecordingIndicator } from './modules/transcription/components/RecordingIndicator';
 import { TranscriptionHistory } from './modules/transcription/components/TranscriptionHistory';
 import { FileUploader } from './modules/transcription/components/FileUploader';
 
@@ -25,6 +26,7 @@ const App: React.FC = () => {
     return (
         <MainLayout>
             <Toaster position="bottom-right" />
+            <RecordingIndicator />
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
             <div className="glass-card-solid p-4 mb-8 flex flex-col md:flex-row justify-between items-center mx-auto max-w-6xl w-full sticky top-0 z-50 backdrop-blur-md gap-4">

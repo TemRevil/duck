@@ -97,7 +97,7 @@ export const GlassModal: React.FC<GlassModalProps> = ({
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <div className="fixed inset-0 bg-shadow-grey/30 backdrop-blur-sm" />
+                    <div className="fixed inset-0 bg-shadow-grey/30 dark:bg-black/40 backdrop-blur-sm" />
                 </TransitionChild>
 
                 <div className="fixed inset-0 overflow-y-auto">
@@ -114,7 +114,7 @@ export const GlassModal: React.FC<GlassModalProps> = ({
                             <DialogPanel
                                 className={cn(
                                     "w-full max-w-md md:max-w-2xl lg:max-w-3xl transform overflow-hidden rounded-[2.5rem] p-4 md:p-8 text-left align-middle shadow-2xl transition-all",
-                                    "bg-mint-cream/85 dark:bg-[#121214]/98 backdrop-blur-2xl border border-tropical-teal/10 dark:border-white/5",
+                                    "bg-mint-cream/90 dark:bg-[#1a1a1d] backdrop-blur-2xl border border-tropical-teal/10 dark:border-white/10",
                                     className
                                 )}
                             >

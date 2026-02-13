@@ -63,7 +63,7 @@ const SettingsModalContent: React.FC<{ onClose: () => void }> = ({ onClose }) =>
     const isActuallyEnabled = notificationsEnabled && isNotificationAllowed;
 
     return (
-        <div className="space-y-6 md:space-y-8 max-h-[75vh] md:max-h-[85vh] overflow-y-auto px-1 custom-scrollbar">
+        <div className="space-y-6 md:space-y-8 max-h-[75vh] md:max-h-[85vh] overflow-y-auto px-1 custom-scrollbar dark:bg-[#1a1a1d]">
                 <header className="flex items-center gap-3 md:gap-4 mb-2">
                 <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br from-tropical-teal to-pearl-aqua flex items-center justify-center text-white shadow-lg shadow-tropical-teal/20">
                     <Sun size={20} className="animate-pulse-slow md:w-6 md:h-6" />
@@ -181,15 +181,17 @@ const SettingsModalContent: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                         <select
                             value={primaryTranscriptionLanguage}
                             onChange={(e) => setPrimaryTranscriptionLanguage(e.target.value)}
-                            className="w-full bg-taupe-grey/5 dark:bg-black/20 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-tropical-teal outline-none"
+                            className="w-full bg-taupe-grey/5 dark:bg-black/20 border-none rounded-xl px-4 py-2 text-sm text-shadow-grey dark:text-white focus:ring-2 focus:ring-tropical-teal outline-none dark:placeholder-white/30"
                         >
                             <option value="auto">Auto-detect</option>
                             <option value="en">English</option>
-                            <option value="ar">Arabic</option>
-                            <option value="fr">French</option>
-                            <option value="de">German</option>
-                            <option value="es">Spanish</option>
+                            <option value="ar">العربية - Arabic (Modern Standard)</option>
+                            <option value="ar-EG">العربية المصرية - Egyptian Arabic</option>
+                            <option value="fr">Français - French</option>
+                            <option value="de">Deutsch - German</option>
+                            <option value="es">Español - Spanish</option>
                         </select>
+                        <p className="text-[10px] text-taupe-grey/60 dark:text-white/40 mt-2">⚠️ Egyptian Arabic: Limited accuracy. Modern Standard recommended.</p>
                     </div>
 
                     {/* Secondary Language */}
@@ -198,14 +200,15 @@ const SettingsModalContent: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                         <select
                             value={secondaryTranscriptionLanguage}
                             onChange={(e) => setSecondaryTranscriptionLanguage(e.target.value)}
-                            className="w-full bg-taupe-grey/5 dark:bg-black/20 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-tropical-teal outline-none"
+                            className="w-full bg-taupe-grey/5 dark:bg-black/20 border-none rounded-xl px-4 py-2 text-sm text-shadow-grey dark:text-white focus:ring-2 focus:ring-tropical-teal outline-none dark:placeholder-white/30"
                         >
                             <option value="">None</option>
                             <option value="en">English</option>
-                            <option value="ar">Arabic</option>
-                            <option value="fr">French</option>
-                            <option value="de">German</option>
-                            <option value="es">Spanish</option>
+                            <option value="ar">العربية - Arabic (Modern Standard)</option>
+                            <option value="ar-EG">العربية المصرية - Egyptian Arabic</option>
+                            <option value="fr">Français - French</option>
+                            <option value="de">Deutsch - German</option>
+                            <option value="es">Español - Spanish</option>
                         </select>
                     </div>
                 </div>
