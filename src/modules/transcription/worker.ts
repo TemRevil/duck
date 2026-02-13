@@ -3,8 +3,6 @@ import { createModel, Model, KaldiRecognizer } from 'vosk-browser';
 
 let models: Record<string, Model> = {};
 let speakerModel: Model | null = null;
-let recognizers: Record<string, KaldiRecognizer> = {};
-
 async function loadModel(lang: string, modelUrl: string) {
     if (!models[lang]) {
         self.postMessage({ status: 'loading', message: `Loading Vosk model for ${lang}...` });
@@ -21,15 +19,13 @@ async function loadSpeakerModel(url: string) {
     return speakerModel;
 }
 
-async function getRecognizer(lang: string, modelUrl: string, spkModelUrl: string, sampleRate: number) {
-    if (!recognizers[lang]) {
-        const model = await loadModel(lang, modelUrl);
-        const spkModel = await loadSpeakerModel(spkModelUrl);
-        // @ts-ignore - Vosk types can be tricky
-        recognizers[lang] = new model.KaldiRecognizer(sampleRate, spkModel);
-        recognizers[lang].setWords(true);
-    }
-    return recognizers[lang];
+async function createRecognizer(lang: string, modelUrl: string, spkModelUrl: string, sampleRate: number) {
+    const model = await loadModel(lang, modelUrl);
+    const spkModel = await loadSpeakerModel(spkModelUrl);
+    // @ts-ignore - Vosk types can be tricky
+    const recognizer = new model.KaldiRecognizer(sampleRate, spkModel);
+    recognizer.setWords(true);
+    return recognizer;
 }
 
 self.onmessage = async (e) => {
@@ -47,7 +43,7 @@ self.onmessage = async (e) => {
 
         if (!url1) throw new Error(`Model URL for ${voskLanguage} not provided`);
 
-        const rec1 = await getRecognizer(voskLanguage, url1, spkUrl, sampleRate || 16000);
+        const rec1 = await createRecognizer(voskLanguage, url1, spkUrl, sampleRate || 16000);
 
         self.postMessage({ status: 'processing', task_id });
 
@@ -67,6 +63,7 @@ self.onmessage = async (e) => {
         };
 
         const segments1 = await processAudio(rec1, audio);
+        rec1.remove(); // Clean up
         results.push(...segments1.map(s => ({ ...s, lang: voskLanguage })));
 
         let combinedText = segments1.map(s => s.text).filter(Boolean).join(' ');
@@ -74,8 +71,9 @@ self.onmessage = async (e) => {
         if (secondaryLanguage && secondaryLanguage !== voskLanguage && modelUrls[secondaryLanguage]) {
             const lang2 = secondaryLanguage;
             const url2 = modelUrls[lang2];
-            const rec2 = await getRecognizer(lang2, url2, spkUrl, sampleRate || 16000);
+            const rec2 = await createRecognizer(lang2, url2, spkUrl, sampleRate || 16000);
             const segments2 = await processAudio(rec2, audio);
+            rec2.remove(); // Clean up
             results.push(...segments2.map(s => ({ ...s, lang: lang2 })));
 
             const text2 = segments2.map(s => s.text).filter(Boolean).join(' ');

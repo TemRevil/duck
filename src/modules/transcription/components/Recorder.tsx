@@ -8,7 +8,7 @@ import { useSettingsStore } from '../../settings/store/settingsStore';
 import { translations } from '../../../utils/translations';
 
 export const Recorder: React.FC = () => {
-    const { isRecording, transcript, interimTranscript, status, isProcessing, startRecording, stopRecording, isRecordingActive, isProcessingActive } = useLiveTranscription();
+    const { isRecording, transcript, interimTranscript, interimSegments, status, isProcessing, startRecording, stopRecording, isRecordingActive, isProcessingActive } = useLiveTranscription();
     const { language } = useSettingsStore();
     const t = translations[language];
 
@@ -65,9 +65,34 @@ export const Recorder: React.FC = () => {
                     <div className="text-sm leading-relaxed whitespace-pre-wrap">
                         {isRecording || isProcessing ? (
                             <div className="space-y-4">
-                                {(transcript || interimTranscript) && <p className="opacity-60">{transcript || interimTranscript}</p>}
-                                {isRecording && <p>{interimTranscript && !transcript ? interimTranscript : 'Waiting for speech...'}</p>}
-                                {isProcessing && <p className="text-amber-600">Saving transcription...</p>}
+                                {interimSegments && interimSegments.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {interimSegments.map((seg, i) => {
+                                            const speakerColors: Record<string, string> = {
+                                                'Speaker 1': 'text-tropical-teal',
+                                                'Speaker 2': 'text-amber-500',
+                                                'Speaker 3': 'text-purple-500',
+                                                'Speaker 4': 'text-rose-500',
+                                                'Speaker 5': 'text-indigo-500',
+                                                'Speaker 6': 'text-emerald-500'
+                                            };
+                                            const speakerColor = speakerColors[seg.speaker] || 'text-tropical-teal';
+                                            const borderColor = speakerColor.replace('text-', 'border-');
+                                            return (
+                                                <div key={i} className={`flex flex-col gap-1 border-l-2 ${borderColor} pl-3 py-1 bg-taupe-grey/5 dark:bg-white/5 rounded-r-md`}>
+                                                    <span className={`text-[10px] font-bold uppercase ${speakerColor}`}>{seg.speaker}</span>
+                                                    <p className="dark:text-white/80">{seg.text}</p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <>
+                                        {(transcript || interimTranscript) && <p className="opacity-60">{transcript || interimTranscript}</p>}
+                                        {isRecording && <p>{interimTranscript && !transcript ? interimTranscript : 'Waiting for speech...'}</p>}
+                                    </>
+                                )}
+                                {isProcessing && <p className="text-amber-600 animate-pulse">Saving transcription...</p>}
                             </div>
                         ) : (
                             transcript || 'No transcript available'

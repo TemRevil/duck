@@ -55,6 +55,7 @@ export const useLiveTranscription = () => {
     const [isRecording, setIsRecording] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [interimTranscript, setInterimTranscript] = useState('');
+    const [interimSegments, setInterimSegments] = useState<any[]>([]);
     const [status, setStatus] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -132,6 +133,16 @@ export const useLiveTranscription = () => {
                         });
 
                         setInterimTranscript(result.text || '');
+
+                        // Perform live diarization for the current window
+                        const segments = clusterSegments(result.chunks).map(c => ({
+                            speaker: c.speaker || 'Speaker 1',
+                            text: c.text,
+                            start: c.timestamp?.[0] || 0,
+                            end: c.timestamp?.[1] || 0
+                        }));
+                        setInterimSegments(segments);
+
                         // We don't necessarily want to accumulate here if we're doing a full pass at the end,
                         // but it helps for long sessions.
                         accumulatedTranscript.current = result.text || '';
@@ -247,6 +258,7 @@ export const useLiveTranscription = () => {
         isRecording,
         transcript,
         interimTranscript,
+        interimSegments,
         status,
         isProcessing,
         isRecordingActive,

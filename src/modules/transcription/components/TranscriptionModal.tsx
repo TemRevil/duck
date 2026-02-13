@@ -57,21 +57,36 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({ entry, o
                         <div>
                             <h3 className="font-bold text-lg mb-3">Segments by Speaker</h3>
                             <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar">
-                                {entry.segments.map((seg, i) => (
-                                    <div key={i} className="bg-taupe-grey/5 dark:bg-white/5 rounded-lg p-4">
-                                        <div className="flex items-start justify-between mb-2">
-                                            <span className="text-xs font-bold text-tropical-teal uppercase">
-                                                {seg.speaker}
-                                            </span>
-                                            <span className="text-xs text-taupe-grey/40">
-                                                {Math.floor(seg.start)}s - {Math.floor(seg.end)}s
-                                            </span>
+                                {entry.segments.map((seg, i) => {
+                                    // Map speaker names to consistent colors
+                                    const speakerColors: Record<string, string> = {
+                                        'Speaker 1': 'text-tropical-teal',
+                                        'Speaker 2': 'text-amber-500',
+                                        'Speaker 3': 'text-purple-500',
+                                        'Speaker 4': 'text-rose-500',
+                                        'Speaker 5': 'text-indigo-500',
+                                        'Speaker 6': 'text-emerald-500'
+                                    };
+
+                                    const speakerColor = speakerColors[seg.speaker] || 'text-tropical-teal';
+                                    const speakerBg = speakerColor.replace('text-', 'bg-').replace('500', '500/10');
+
+                                    return (
+                                        <div key={i} className={`rounded-lg p-4 border-l-4 ${speakerBg} border-current ${speakerColor}`}>
+                                            <div className="flex items-start justify-between mb-2">
+                                                <span className={`text-xs font-bold uppercase ${speakerColor}`}>
+                                                    {seg.speaker}
+                                                </span>
+                                                <span className="text-xs opacity-50 font-mono">
+                                                    {Math.floor(seg.start)}s - {Math.floor(seg.end)}s
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-shadow-grey/80 dark:text-white/90 leading-relaxed font-medium">
+                                                {seg.text}
+                                            </p>
                                         </div>
-                                        <p className="text-sm text-shadow-grey/80 dark:text-white/70 leading-relaxed">
-                                            {seg.text}
-                                        </p>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
