@@ -84,7 +84,7 @@ const App: React.FC = () => {
                             <div className="mt-6 space-y-2">
                                 <div className="flex items-center gap-2 text-sm font-medium">
                                     <div className="w-1.5 h-1.5 rounded-full bg-tropical-teal" />
-                                    Powered by OpenAI Whisper (via Transformers.js)
+                                    Powered by Vosk-Browser (Kaldi-based)
                                 </div>
                                 <div className="flex items-center gap-2 text-sm font-medium">
                                     <div className="w-1.5 h-1.5 rounded-full bg-tropical-teal" />

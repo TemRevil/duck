@@ -62,7 +62,7 @@ export const TranscriptionHistory: React.FC = () => {
         const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
         const rawData = audioBuffer.getChannelData(0);
-        
+
         // Resample to 16kHz if needed
         const sampleRate = audioBuffer.sampleRate;
         if (sampleRate !== 16000) {
@@ -86,7 +86,7 @@ export const TranscriptionHistory: React.FC = () => {
             await db.transcriptions.update(entry.id, { status: 'processing' });
 
             const result = await engine.transcribe(audioData, {
-                model: `Xenova/whisper-${modelQuality}${primaryTranscriptionLanguage === 'en' ? '.en' : ''}`,
+
                 language: primaryTranscriptionLanguage === 'auto' ? undefined : primaryTranscriptionLanguage,
                 secondaryLanguage: secondaryTranscriptionLanguage || undefined,
             });

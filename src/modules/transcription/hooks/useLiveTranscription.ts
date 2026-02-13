@@ -55,16 +55,18 @@ export const useLiveTranscription = () => {
     const [isRecording, setIsRecording] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [interimTranscript, setInterimTranscript] = useState('');
+    const [interimSegments, setInterimSegments] = useState<any[]>([]);
     const [status, setStatus] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
 
     const recorderRef = useRef<AudioRecorder | null>(null);
     const engine = TranscriptionEngine.getInstance();
-    const { primaryTranscriptionLanguage, secondaryTranscriptionLanguage, modelQuality } = useSettingsStore();
-    
+    const { primaryTranscriptionLanguage, secondaryTranscriptionLanguage } = useSettingsStore();
+
     // Global recording state - persists across navigation
-    const { 
-        isRecordingActive, 
+    const {
+        isRecordingActive,
+
         isProcessingActive,
         currentStatus: globalStatus,
         statusMessage: globalStatusMessage,
@@ -75,7 +77,6 @@ export const useLiveTranscription = () => {
         resetSession
     } = useRecordingStore();
 
-    const lastProcessedIndex = useRef(0);
     const processingInterval = useRef<any>(null);
     const accumulatedTranscript = useRef<string>('');
     const dbIdRef = useRef<number | null>(null);
@@ -93,7 +94,7 @@ export const useLiveTranscription = () => {
 
             recorderRef.current = new AudioRecorder();
             await recorderRef.current.start();
-            
+
             // Initial save to history
             const entryId = await db.transcriptions.add({
                 title: `Recording ${new Date().toLocaleString()}`,
@@ -108,7 +109,7 @@ export const useLiveTranscription = () => {
 
             // Update global recording state
             startSession(entryId.toString());
-            
+
             // Local UI state
             setIsRecording(true);
             setTranscript('');
@@ -117,15 +118,9 @@ export const useLiveTranscription = () => {
             accumulatedTranscript.current = '';
             setIsProcessing(false);
 
-            // Show message if using non-English language
-            if (primaryTranscriptionLanguage !== 'en' && primaryTranscriptionLanguage !== 'auto') {
-                const langDisplay = primaryTranscriptionLanguage === 'ar-EG' ? 'Egyptian Arabic' : primaryTranscriptionLanguage.toUpperCase();
-                toast.success(`Recording started (${langDisplay})`);
-            } else {
-                toast.success('Recording started');
-            }
+            toast.success('Recording started');
 
-            // Start periodic transcription
+            // Start periodic transcription (lively updates)
             processingInterval.current = setInterval(async () => {
                 if (!recorderRef.current) return;
 
@@ -134,14 +129,24 @@ export const useLiveTranscription = () => {
                 if (audioWindow.length > 16000 * 1) {
                     try {
                         const result = await engine.transcribe(audioWindow, {
-                            model: `Xenova/whisper-${modelQuality}${primaryTranscriptionLanguage === 'en' ? '.en' : ''}`,
-                            language: primaryTranscriptionLanguage === 'auto' ? undefined : primaryTranscriptionLanguage,
+                            language: primaryTranscriptionLanguage,
                             secondaryLanguage: secondaryTranscriptionLanguage || undefined,
                         });
-                        
-                        // Update accumulated transcript with new data
-                        accumulatedTranscript.current = result.text || '';
+
                         setInterimTranscript(result.text || '');
+
+                        // Perform live diarization for the current window
+                        const segments = clusterSegments(result.chunks).map(c => ({
+                            speaker: c.speaker || 'Speaker 1',
+                            text: c.text,
+                            start: c.timestamp?.[0] || 0,
+                            end: c.timestamp?.[1] || 0
+                        }));
+                        setInterimSegments(segments);
+
+                        // We don't necessarily want to accumulate here if we're doing a full pass at the end,
+                        // but it helps for long sessions.
+                        accumulatedTranscript.current = result.text || '';
                     } catch (err) {
                         console.error("Live transcription error:", err);
                     }
@@ -178,135 +183,77 @@ export const useLiveTranscription = () => {
         toast.loading('Recording stopped. Processing in background...');
     };
 
-    // Non-blocking finalization - happens in the background
+
     const performFinalization = async (finalAudio: Float32Array) => {
         const dbId = dbIdRef.current;
 
         try {
-            console.log('=== BACKGROUND FINALIZATION STARTED ===');
-            console.log('Final audio length:', finalAudio.length, 'duration:', finalAudio.length / 16000, 'seconds');
-            console.log('Accumulated from live:', accumulatedTranscript.current ? accumulatedTranscript.current.length : 0, 'chars');
-
-            // Update global status
-            updateStatus('processing', 'Flushing transcription buffer...');
-            setStatus('Flushing transcription buffer...');
-
-            // Phase 1: Wait for live transcription to flush
-            console.log('Phase 1: Waiting for live transcription to flush...');
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Phase 2: Do final complete transcription of entire audio
-            console.log('Phase 2: Starting final transcription of complete audio...');
             updateStatus('processing', 'Finalizing transcription...');
             setStatus('Finalizing transcription...');
-            
-            let finalTranscript = accumulatedTranscript.current || '';
-            
-            // Only do final transcription if we have audio and haven't gotten complete text yet
-            if (finalAudio.length > 16000 * 2) {
-                try {
-                    console.log('Performing complete audio transcription...');
-                    const completeResult = await engine.transcribe(finalAudio, {
-                        model: `Xenova/whisper-${modelQuality}${primaryTranscriptionLanguage === 'en' ? '.en' : ''}`,
-                        language: primaryTranscriptionLanguage === 'auto' ? undefined : primaryTranscriptionLanguage,
-                        secondaryLanguage: secondaryTranscriptionLanguage || undefined,
-                        onProgress: (p) => {
-                            console.log('Final transcription progress:', p);
-                            setStatus(p);
-                        }
-                    });
 
-                    console.log('Complete transcription result:', {
-                        text: completeResult.text,
-                        length: completeResult.text ? completeResult.text.length : 0,
-                        chunks: completeResult.chunks ? completeResult.chunks.length : 0
-                    });
+            let finalResult;
 
-                    // Use complete result as it has the full audio
-                    finalTranscript = completeResult.text || finalTranscript;
-                } catch (transcribeError) {
-                    console.error('Complete transcription failed:', transcribeError);
-                    const errorMsg = transcribeError instanceof Error ? transcribeError.message : String(transcribeError);
-                    
-                    // If it's a language model issue, inform user
-                    if (errorMsg.includes('Failed to fetch') && primaryTranscriptionLanguage !== 'en') {
-                        console.log('Language model unavailable - worker may have used English fallback');
-                        toast.success(`${primaryTranscriptionLanguage.toUpperCase()} model unavailable - using English model instead`);
+            if (finalAudio.length > 16000 * 1) {
+                finalResult = await engine.transcribe(finalAudio, {
+                    language: primaryTranscriptionLanguage,
+                    secondaryLanguage: secondaryTranscriptionLanguage || undefined,
+                    onProgress: (p) => {
+                        setStatus(p);
+                        updateStatus('processing', p);
                     }
-                    
-                    console.log('Falling back to accumulated transcript');
-                }
-            }
-
-            console.log('=== FINALIZATION ===');
-            console.log('Final transcript length:', finalTranscript ? finalTranscript.length : 0);
-            console.log('Final transcript:', finalTranscript);
-
-            updateStatus('processing', 'Saving transcription...');
-            setStatus('Saving transcription...');
-
-            // Phase 3: Convert audio to blob
-            const audioBlob = float32ToWavBlob(finalAudio, 16000);
-            console.log('Audio blob created:', { size: audioBlob.size, type: audioBlob.type });
-
-            // Phase 4: Create segments
-            let segments: any[] = [];
-            if (finalTranscript) {
-                segments = [{
-                    speaker: 'Speaker 1',
-                    text: finalTranscript,
-                    start: 0,
-                    end: finalAudio.length / 16000
-                }];
-            }
-
-            // Phase 5: Save to database
-            if (dbId) {
-                console.log('=== PHASE 5: DATABASE SAVE ===');
-                console.log('Saving with:', {
-                    dbId,
-                    transcriptLength: finalTranscript.length,
-                    segmentsCount: segments.length,
-                    duration: finalAudio.length / 16000,
-                    audioBlobSize: audioBlob.size
                 });
+            } else {
+                finalResult = { text: accumulatedTranscript.current, chunks: [] };
+            }
 
+            setStatus('Saving...');
+            updateStatus('processing', 'Saving transcription...');
+
+            // Convert audio to blob
+            const audioBlob = float32ToWavBlob(finalAudio, 16000);
+
+            // Create segments using diarization util
+            const segments = clusterSegments(finalResult.chunks).map(c => ({
+                speaker: c.speaker || 'Speaker 1',
+                text: c.text,
+                start: c.timestamp?.[0] || 0,
+                end: c.timestamp?.[1] || 0
+            }));
+
+            // Save to database
+            if (dbId) {
                 await db.transcriptions.update(dbId, {
                     duration: finalAudio.length / 16000,
-                    transcript: finalTranscript,
+                    transcript: finalResult.text,
                     segments: segments,
                     audioBlob,
                     status: 'completed'
                 });
 
-                setTranscript(finalTranscript);
+
+                setTranscript(finalResult.text);
+                setInterimTranscript('');
                 setStatus('Completed');
                 setIsProcessing(false);
-                
+
                 // Complete the global session
                 completeSession();
-                
-                console.log('✓ Recording finalized and saved successfully');
-                console.log('Final session summary:', {
-                    duration: finalAudio.length / 16000,
-                    textLength: finalTranscript.length,
-                    words: finalTranscript.split(/\s+/).length
-                });
 
-                toast.success(`Recording transcribed and saved (${(finalAudio.length / 16000).toFixed(1)}s)`);
+                toast.success("Transcription saved to history");
             }
 
         } catch (error) {
-            console.error("=== FATAL ERROR IN FINALIZATION ===", error);
+            console.error("Fatal error in finalization:", error);
             if (dbId) {
                 await db.transcriptions.update(dbId, { status: 'error' });
             }
             setStatus('Error');
             setIsProcessing(false);
-            
+
             const errorMsg = error instanceof Error ? error.message : 'Unknown error';
             setErrorMessage(errorMsg);
-            
+
+
             toast.error("Finalization failed: " + errorMsg);
         }
     };
@@ -315,6 +262,7 @@ export const useLiveTranscription = () => {
         isRecording,
         transcript,
         interimTranscript,
+        interimSegments,
         status,
         isProcessing,
         // Also expose global state for app-wide visibility
