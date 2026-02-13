@@ -38,35 +38,51 @@ self.onmessage = async (e) => {
     try {
         const results: any[] = [];
         const lang1 = language || 'en';
-        const url1 = modelUrls[lang1];
+
+        // Handle Egyptian Arabic - map ar-EG to ar for Vosk compatibility
+        const voskLanguage = (lang1 === 'ar-EG' || lang1 === 'ar-eg') ? 'ar' : lang1;
+
+        const url1 = modelUrls[voskLanguage];
         const spkUrl = speakerModelUrl;
 
-        if (!url1) throw new Error(`Model URL for ${lang1} not provided`);
+        if (!url1) throw new Error(`Model URL for ${voskLanguage} not provided`);
 
-        const rec1 = await getRecognizer(lang1, url1, spkUrl, sampleRate || 16000);
+        const rec1 = await getRecognizer(voskLanguage, url1, spkUrl, sampleRate || 16000);
 
         self.postMessage({ status: 'processing', task_id });
 
-        // Process audio
-        // @ts-ignore
-        rec1.acceptWaveform(audio);
-        // @ts-ignore
-        const res1 = await rec1.finalResult();
-        results.push({ lang: lang1, ...res1 });
+        const processAudio = async (recognizer: any, audioData: Float32Array) => {
+            const segments = [];
+            const CHUNK_SIZE = 4000;
+            for (let i = 0; i < audioData.length; i += CHUNK_SIZE) {
+                const chunk = audioData.slice(i, i + CHUNK_SIZE);
+                if (recognizer.acceptWaveform(chunk)) {
+                    const res = await recognizer.result();
+                    if (res.text) segments.push(res);
+                }
+            }
+            const final = await recognizer.finalResult();
+            if (final.text) segments.push(final);
+            return segments;
+        };
 
-        if (secondaryLanguage && secondaryLanguage !== lang1 && modelUrls[secondaryLanguage]) {
+        const segments1 = await processAudio(rec1, audio);
+        results.push(...segments1.map(s => ({ ...s, lang: voskLanguage })));
+
+        let combinedText = segments1.map(s => s.text).filter(Boolean).join(' ');
+
+        if (secondaryLanguage && secondaryLanguage !== voskLanguage && modelUrls[secondaryLanguage]) {
             const lang2 = secondaryLanguage;
             const url2 = modelUrls[lang2];
             const rec2 = await getRecognizer(lang2, url2, spkUrl, sampleRate || 16000);
-            // @ts-ignore
-            rec2.acceptWaveform(audio);
-            // @ts-ignore
-            const res2 = await rec2.finalResult();
-            results.push({ lang: lang2, ...res2 });
-        }
+            const segments2 = await processAudio(rec2, audio);
+            results.push(...segments2.map(s => ({ ...s, lang: lang2 })));
 
-        // Merge results (simple merge for now, prioritizing lang1)
-        const combinedText = results.map(r => r.text).join(' / ');
+            const text2 = segments2.map(s => s.text).filter(Boolean).join(' ');
+            if (text2) {
+                combinedText += ' / ' + text2;
+            }
+        }
 
         self.postMessage({
             status: 'completed',
@@ -76,7 +92,8 @@ self.onmessage = async (e) => {
                 chunks: results.flatMap(r => (r.result || []).map((c: any) => ({
                     timestamp: [c.start, c.end],
                     text: c.word,
-                    speaker: r.spk_frames ? `Speaker (${r.lang})` : r.lang
+                    spk: r.spk, // Include speaker vector from segment
+                    speaker: r.spk ? 'Unknown' : r.lang
                 })))
             }
         });

@@ -89,7 +89,26 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-pearl-aqua/40 rounded-full hover:bg-tropical-teal transition-colors;
+    @apply bg-pearl-aqua/40 dark:bg-white/20 rounded-full hover:bg-tropical-teal dark:hover:bg-white/40 transition-colors;
+  }
+
+  /* Dark Mode Select Styling */
+  select {
+    @apply text-shadow-grey;
+    color-scheme: light;
+  }
+
+  .dark select {
+    @apply dark:text-white;
+    color-scheme: dark;
+  }
+
+  select option {
+    @apply bg-white text-shadow-grey;
+  }
+
+  .dark select option {
+    @apply dark:bg-[#1a1a1d] dark:text-white;
   }
 
   /* Electron Dragging */

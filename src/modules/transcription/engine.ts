@@ -33,7 +33,7 @@ export class TranscriptionEngine {
         sampleRate?: number;
         onProgress?: (status: string) => void;
     }): Promise<TranscriptionResult> {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             if (!this.worker) {
                 reject(new Error('Worker not initialized'));
                 return;
@@ -50,35 +50,95 @@ export class TranscriptionEngine {
                 'es': 'https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip'
             };
 
-            const handler = (e: MessageEvent) => {
-                if (!e.data || typeof e.data !== 'object') return;
+            // Chunk audio to prevent stack overflow and provide better progress
+            const CHUNK_DURATION = 30; // 30 seconds
+            const SAMPLE_RATE = options.sampleRate || 16000;
+            const chunkSize = CHUNK_DURATION * SAMPLE_RATE;
+            const chunks: Float32Array[] = [];
 
-                const { status, task_id: response_id, result, error, message } = e.data;
+            for (let i = 0; i < audio.length; i += chunkSize) {
+                chunks.push(audio.slice(i, Math.min(i + chunkSize, audio.length)));
+            }
 
-                if (response_id !== task_id) return;
-
-                if (status === 'loading' || status === 'processing') {
-                    options.onProgress?.(message || status);
-                } else if (status === 'completed') {
-                    this.worker?.removeEventListener('message', handler);
-                    resolve(result);
-                } else if (status === 'error') {
-                    this.worker?.removeEventListener('message', handler);
-                    reject(new Error(error || 'Unknown worker error'));
-                }
+            let allResults: TranscriptionResult = {
+                text: '',
+                chunks: []
             };
 
-            this.worker.addEventListener('message', handler);
+            // Process chunks sequentially
+            for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
+                const chunk = chunks[chunkIdx];
+                const chunk_task_id = `${task_id}_chunk_${chunkIdx}`;
 
-            this.worker.postMessage({
-                audio,
-                language: options.language || 'en',
-                secondaryLanguage: options.secondaryLanguage,
-                modelUrls,
-                speakerModelUrl: 'https://alphacephei.com/vosk/models/vosk-model-spk-0.4.zip',
-                sampleRate: options.sampleRate || 16000,
-                task_id
-            });
+                if (options && typeof options.onProgress === 'function') {
+                    options.onProgress(`Processing chunk ${chunkIdx + 1}/${chunks.length}...`);
+                }
+
+                try {
+                    const chunkResult = await new Promise<TranscriptionResult>((resolveChunk, rejectChunk) => {
+                        const timeout = setTimeout(() => {
+                            rejectChunk(new Error(`Chunk ${chunkIdx} timeout`));
+                        }, 120000);
+
+                        const chunkHandler = (e: MessageEvent) => {
+                            if (!e.data || typeof e.data !== 'object') return;
+
+                            const { status, task_id: response_id, result, error, message } = e.data;
+
+                            if (response_id !== chunk_task_id) return;
+
+                            if (status === 'loading' || status === 'processing') {
+                                options.onProgress?.(message || status);
+                            } else if (status === 'completed') {
+                                clearTimeout(timeout);
+                                this.worker?.removeEventListener('message', chunkHandler);
+                                resolveChunk(result);
+                            } else if (status === 'error') {
+                                clearTimeout(timeout);
+                                this.worker?.removeEventListener('message', chunkHandler);
+                                rejectChunk(new Error(error || 'Chunk processing error'));
+                            }
+                        };
+
+                        this.worker!.addEventListener('message', chunkHandler);
+
+                        this.worker!.postMessage({
+                            audio: chunk,
+                            language: options.language || 'en',
+                            secondaryLanguage: options.secondaryLanguage,
+                            modelUrls,
+                            speakerModelUrl: 'https://alphacephei.com/vosk/models/vosk-model-spk-0.4.zip',
+                            sampleRate: SAMPLE_RATE,
+                            task_id: chunk_task_id
+                        });
+                    });
+
+                    // Merge chunk results
+                    if (chunkResult.text) {
+                        allResults.text += (allResults.text ? ' ' : '') + chunkResult.text;
+                    }
+                    if (chunkResult.chunks && chunkResult.chunks.length > 0) {
+                        const timeOffset = chunkIdx * CHUNK_DURATION;
+                        const adjustedChunks = chunkResult.chunks.map(c => ({
+                            ...c,
+                            timestamp: [
+                                (c.timestamp[0] || 0) + timeOffset,
+                                (c.timestamp[1] || 0) + timeOffset
+                            ] as [number, number]
+                        }));
+                        allResults.chunks.push(...adjustedChunks);
+                    }
+
+                } catch (error) {
+                    console.error(`Chunk ${chunkIdx} failed:`, error);
+                    if (chunks.length === 1) {
+                        reject(error);
+                        return;
+                    }
+                }
+            }
+
+            resolve(allResults);
         });
     }
 }
